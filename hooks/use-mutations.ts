@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   createRegistration,
   savePaymentProof,
@@ -14,7 +14,6 @@ import { useRouter } from "next/navigation";
 export function useCreateRegistration() {
   const { toast } = useToast();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: createRegistration,
@@ -30,37 +29,35 @@ export function useCreateRegistration() {
 
       // Store minimal data in sessionStorage for checkout page
       const checkoutData = {
-        registrationId: data.data.id,
-        fullName: data.data.fullName,
-        email: data.data.email,
-        phone: data.data.phone,
-        tickets: data.data.tickets.map((ticket) => ({
+        registrationId: data.data?.id,
+        fullName: data.data?.fullName,
+        email: data.data?.email,
+        phone: data.data?.phone,
+        tickets: data.data?.tickets.map((ticket) => ({
           type: ticket.ticketType.name,
           quantity: String(ticket.quantity),
           dancer: ticket.dancer,
         })),
-        totalPrice: data.data.totalPrice,
+        totalPrice: data.data?.totalPrice,
         priceBreakdown: {
-          vipCount: data.data.tickets
+          vipCount: data.data?.tickets
             .filter((t) => t.ticketType.name === "VIP")
             .reduce((sum, t) => sum + t.quantity, 0),
-          regularCount: data.data.tickets
+          regularCount: data.data?.tickets
             .filter((t) => t.ticketType.name === "Regular")
             .reduce((sum, t) => sum + t.quantity, 0),
-          vipTotal: data.data.tickets
+          vipTotal: data.data?.tickets
             .filter((t) => t.ticketType.name === "VIP")
             .reduce((sum, t) => sum + t.quantity * t.ticketType.price, 0),
-          regularTotal: data.data.tickets
+          regularTotal: data.data?.tickets
             .filter((t) => t.ticketType.name === "Regular")
             .reduce((sum, t) => sum + t.quantity * t.ticketType.price, 0),
         },
-        referenceNumber: data.data.referenceNumber,
+        referenceNumber: data.data?.referenceNumber,
       };
 
       // Save to sessionStorage
       sessionStorage.setItem("4dk-registration", JSON.stringify(checkoutData));
-
-      queryClient.invalidateQueries({ queryKey: ["registrations"] });
 
       // Navigate to checkout page
       router.push("/checkout");

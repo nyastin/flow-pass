@@ -36,6 +36,7 @@ export function AdminPanel() {
     queryFn: () =>
       getAllRegistrations({ customerName, ticketType, status, page, limit }),
     retry: 0,
+    refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
   });
 
