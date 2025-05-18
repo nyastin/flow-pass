@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres
+    container_name: flow-pass-db
+    environment:
+      POSTGRES_DB: flow-pass-db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "2345:5432"
+
+volumes:
+  postgres_data:

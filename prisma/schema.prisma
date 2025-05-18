@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Define the main registration model
+model Registration {
+  id                  String               @id @default(cuid())
+  fullName            String
+  email               String
+  phone               String
+  specialRequirements String?
+  referenceNumber     String               @unique
+  totalPrice          Float
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  status              RegistrationStatus   @default(PENDING)
+  paymentProof        PaymentProof?
+  tickets             RegistrationTicket[]
+}
+
+// Define the ticket types
+model TicketType {
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  price               Float
+  registrationTickets RegistrationTicket[]
+}
+
+// Junction table for many-to-many relationship between registrations and ticket types
+model RegistrationTicket {
+  id             String       @id @default(cuid())
+  registrationId String
+  ticketTypeId   String
+  quantity       Int
+  dancer         String
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  ticketType     TicketType   @relation(fields: [ticketTypeId], references: [id])
+
+  @@unique([registrationId, ticketTypeId, dancer])
+}
+
+// Model for payment proof images
+model PaymentProof {
+  id             String       @id @default(cuid())
+  registrationId String       @unique
+  imageUrl       String
+  uploadedAt     DateTime     @default(now())
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
