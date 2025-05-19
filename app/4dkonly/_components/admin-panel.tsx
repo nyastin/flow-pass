@@ -43,7 +43,6 @@ export function AdminPanel() {
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-6 text-teal-400">4DK Admin Panel</h1>
-
       <QueryTabs
         defaultTab="Registrations"
         tabContent={{

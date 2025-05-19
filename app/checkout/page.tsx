@@ -26,11 +26,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useUploadFile, useSavePaymentProof } from "@/hooks/use-mutations";
 import { usePreventNavigation } from "@/hooks/use-prevent-navigation";
+import { toast } from "sonner";
 
 interface TicketItem {
   type: string;
@@ -61,7 +61,6 @@ interface FormData {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { toast } = useToast();
 
   const [formData, setFormData] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,11 +84,9 @@ export default function CheckoutPage() {
 
       if (!storedData) {
         // No data found, redirect to registration page
-        toast({
-          title: "Session expired",
+        toast.error("Uh oh! Something went wrong!", {
           description:
             "Your registration information was not found. Please fill out the form again.",
-          variant: "destructive",
         });
         router.push("/");
         return;
@@ -100,11 +97,9 @@ export default function CheckoutPage() {
       setFormData(parsedData);
     } catch (error) {
       console.error("Error loading registration data:", error);
-      toast({
-        title: "Error",
+      toast.error("Uh oh! Something went wrong.", {
         description:
           "There was a problem loading your registration data. Please try again.",
-        variant: "destructive",
       });
       router.push("/");
     } finally {
@@ -117,8 +112,7 @@ export default function CheckoutPage() {
 
     navigator.clipboard.writeText(formData.referenceNumber);
     setCopied(true);
-    toast({
-      title: "Reference number copied!",
+    toast.error("Uh oh! Something went wrong.", {
       description: "You can use this when making your payment.",
     });
 
@@ -131,20 +125,16 @@ export default function CheckoutPage() {
 
       // Check if file is an image
       if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Invalid file type",
+        toast.error("Uh oh! Something went wrong.", {
           description: "Please upload an image file (JPEG, PNG, etc.)",
-          variant: "destructive",
         });
         return;
       }
 
       // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
+        toast.error("Uh oh! Something went wrong.", {
           description: "Please upload an image smaller than 5MB",
-          variant: "destructive",
         });
         return;
       }
@@ -168,10 +158,8 @@ export default function CheckoutPage() {
 
   const handleConfirmPayment = async () => {
     if (!formData || !paymentProof) {
-      toast({
-        title: "Payment proof required",
+      toast.error("Uh oh! Something went wrong.", {
         description: "Please upload a screenshot of your payment",
-        variant: "destructive",
       });
       return;
     }

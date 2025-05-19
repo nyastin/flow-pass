@@ -25,8 +25,10 @@ export type RegistrationWithRelations = Registration & {
 };
 
 export type GetAllRegistrationsResponse = {
-  data: RegistrationWithRelations[];
-  meta: {
+  success: boolean;
+  error?: string;
+  data?: RegistrationWithRelations[];
+  meta?: {
     page: number;
     total: number;
     limit: number;
@@ -141,7 +143,7 @@ export async function getAllRegistrations({
     ]);
 
     const returnData = {
-      // success: true,
+      success: true,
       data: registrations,
       meta: {
         page: page ?? 1,
@@ -153,7 +155,7 @@ export async function getAllRegistrations({
     return returnData;
   } catch (error) {
     console.error("Error fetching registrations:", error);
-    throw new Error((error as Error).message);
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -186,7 +188,7 @@ export async function updateRegistrationStatus(id: string, status: string) {
   try {
     const registration = await prisma.registration.update({
       where: { id },
-      data: { status },
+      data: { status: status as RegistrationStatus },
     });
 
     return { success: true, data: registration };

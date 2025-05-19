@@ -7,22 +7,19 @@ import {
   getRegistrationByReferenceNumber,
 } from "@/services/registration";
 import { uploadFile } from "@/services/storage";
-import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 // Hook for creating a registration
 export function useCreateRegistration() {
-  const { toast } = useToast();
   const router = useRouter();
 
   return useMutation({
     mutationFn: createRegistration,
     onSuccess: (data) => {
       if (!data.success) {
-        toast({
-          title: "Error",
+        toast.error("Uh oh! Something went wrong.", {
           description: data.error || "Failed to create registration",
-          variant: "destructive",
         });
         return;
       }
@@ -63,12 +60,10 @@ export function useCreateRegistration() {
       router.push("/checkout");
     },
     onError: (error) => {
-      toast({
-        title: "Error",
+      toast.error("Uh oh! Something went wrong.", {
         description:
           error.message ||
           "There was a problem processing your registration. Please try again.",
-        variant: "destructive",
       });
     },
   });
@@ -94,7 +89,6 @@ export function useUploadFile() {
 
 // Hook for saving payment proof
 export function useSavePaymentProof() {
-  const { toast } = useToast();
   const router = useRouter();
 
   return useMutation({
@@ -118,10 +112,8 @@ export function useSavePaymentProof() {
     },
     onSuccess: (data) => {
       if (!data.success) {
-        toast({
-          title: "Error",
+        toast("Uh oh! Something went wrong.", {
           description: data.error || "Failed to save payment proof",
-          variant: "destructive",
         });
         return;
       }
@@ -132,12 +124,10 @@ export function useSavePaymentProof() {
       }, 1000);
     },
     onError: (error) => {
-      toast({
-        title: "Error",
+      toast.error("Uh oh! Something went wrong.", {
         description:
           error.message ||
           "There was a problem processing your payment. Please try again.",
-        variant: "destructive",
       });
     },
   });
@@ -147,8 +137,6 @@ export function useSavePaymentProof() {
 export function useRegistrationByReferenceNumber(
   referenceNumber: string | null,
 ) {
-  const { toast } = useToast();
-
   return useQuery({
     queryKey: ["registration", referenceNumber],
     queryFn: async () => {
@@ -158,12 +146,5 @@ export function useRegistrationByReferenceNumber(
       return getRegistrationByReferenceNumber(referenceNumber);
     },
     enabled: !!referenceNumber,
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to fetch registration details",
-        variant: "destructive",
-      });
-    },
   });
 }

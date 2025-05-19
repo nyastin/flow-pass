@@ -63,7 +63,7 @@ export const RegistrationsList = ({
       pageIndex={page}
       pageSize={limit}
       size="lg"
-      totalPages={data?.meta.total ?? 1}
+      totalPages={data?.meta?.total ?? 1}
     />
   );
 };
