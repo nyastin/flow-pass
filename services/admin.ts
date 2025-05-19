@@ -1,15 +1,19 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { validateQRCode } from "@/utils/qr-code";
 import { Prisma, Registration, RegistrationStatus } from "@prisma/client";
 
 export type RegistrationWithRelations = Registration & {
   tickets: Array<{
-    id: string;
+    id: number;
     registrationId: string;
     ticketTypeId: string;
-    quantity: number;
     dancer: string;
+    qrCode: string | null;
+    isScanned: boolean;
+    scannedAt: Date | null;
+    createdAt: Date;
     ticketType: {
       id: string;
       name: string;
@@ -194,6 +198,41 @@ export async function updateRegistrationStatus(id: string, status: string) {
     return { success: true, data: registration };
   } catch (error) {
     console.error("Error updating registration status:", error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function updateTicketScanStatus(
+  ticketId: number,
+  isScanned: boolean,
+) {
+  try {
+    const ticket = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        isScanned,
+        scannedAt: isScanned ? new Date() : null,
+      },
+    });
+
+    return { success: true, data: ticket };
+  } catch (error) {
+    console.error("Error updating ticket scan status:", error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function getTicketByQRCode(qrCode: string) {
+  try {
+    const ticket = await validateQRCode(qrCode);
+
+    if (!ticket) {
+      return { success: false, error: "Ticket not found" };
+    }
+
+    return { success: true, data: ticket };
+  } catch (error) {
+    console.error("Error fetching ticket:", error);
     return { success: false, error: (error as Error).message };
   }
 }

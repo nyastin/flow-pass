@@ -2,8 +2,8 @@
 
 import type React from "react";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Check,
@@ -12,7 +12,7 @@ import {
   X,
   ImageIcon,
   Loader2,
-  DollarSign,
+  Ticket,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -29,8 +29,9 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useUploadFile, useSavePaymentProof } from "@/hooks/use-mutations";
-import { usePreventNavigation } from "@/hooks/use-prevent-navigation";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { usePreventNavigation } from "@/hooks/use-prevent-navigation";
 
 interface TicketItem {
   type: string;
@@ -57,8 +58,6 @@ interface FormData {
   referenceNumber: string;
 }
 
-// Custom hook for preventing navigation
-
 export default function CheckoutPage() {
   const router = useRouter();
 
@@ -70,11 +69,11 @@ export default function CheckoutPage() {
     null,
   );
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [totalTicketCount, setTotalTicketCount] = useState(0);
 
   const uploadFileMutation = useUploadFile();
   const savePaymentProofMutation = useSavePaymentProof();
 
-  // Use the custom hook
   usePreventNavigation();
 
   // Load data from sessionStorage on component mount
@@ -84,7 +83,7 @@ export default function CheckoutPage() {
 
       if (!storedData) {
         // No data found, redirect to registration page
-        toast.error("Uh oh! Something went wrong!", {
+        toast.error("Uh oh! Session Expired.", {
           description:
             "Your registration information was not found. Please fill out the form again.",
         });
@@ -95,6 +94,12 @@ export default function CheckoutPage() {
       // Parse the stored data
       const parsedData = JSON.parse(storedData) as FormData;
       setFormData(parsedData);
+
+      // Calculate total number of tickets
+      const ticketCount = parsedData.tickets.reduce((total, ticket) => {
+        return total + Number.parseInt(ticket.quantity, 10);
+      }, 0);
+      setTotalTicketCount(ticketCount);
     } catch (error) {
       console.error("Error loading registration data:", error);
       toast.error("Uh oh! Something went wrong.", {
@@ -112,9 +117,7 @@ export default function CheckoutPage() {
 
     navigator.clipboard.writeText(formData.referenceNumber);
     setCopied(true);
-    toast.error("Uh oh! Something went wrong.", {
-      description: "You can use this when making your payment.",
-    });
+    toast("You can use this when making your payment.");
 
     setTimeout(() => setCopied(false), 2000);
   };
@@ -125,7 +128,7 @@ export default function CheckoutPage() {
 
       // Check if file is an image
       if (!file.type.startsWith("image/")) {
-        toast.error("Uh oh! Something went wrong.", {
+        toast.error("Uh oh! Invalid file type", {
           description: "Please upload an image file (JPEG, PNG, etc.)",
         });
         return;
@@ -133,7 +136,7 @@ export default function CheckoutPage() {
 
       // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast.error("Uh oh! Something went wrong.", {
+        toast.error("Uh oh! File too large.", {
           description: "Please upload an image smaller than 5MB",
         });
         return;
@@ -158,7 +161,7 @@ export default function CheckoutPage() {
 
   const handleConfirmPayment = async () => {
     if (!formData || !paymentProof) {
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Uh oh! Payment proof required.", {
         description: "Please upload a screenshot of your payment",
       });
       return;
@@ -200,6 +203,12 @@ export default function CheckoutPage() {
       clearInterval(progressInterval);
       setUploadProgress(0);
       console.error("Error processing payment:", error);
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          (error as Error).message ||
+          "Failed to process payment. Please try again.",
+      });
     }
   };
 
@@ -253,15 +262,7 @@ export default function CheckoutPage() {
         <Button
           variant="ghost"
           className="mb-4"
-          onClick={() => {
-            if (
-              window.confirm(
-                "Are you sure you want to leave? Your payment information will be lost.",
-              )
-            ) {
-              router.push("/");
-            }
-          }}
+          onClick={() => router.push("/")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to registration
@@ -295,19 +296,29 @@ export default function CheckoutPage() {
 
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium flex items-center">
-                    <DollarSign className="h-4 w-4 mr-1 text-teal-400" />
-                    Tickets:
+                    <Ticket className="h-4 w-4 mr-1 text-teal-400" />
+                    Tickets ({totalTicketCount} total):
                   </h4>
 
-                  {formData.tickets.map((ticket, index) => (
-                    <div key={index} className="ml-2 grid grid-cols-3 text-sm">
-                      <span>
-                        {ticket.quantity}x {ticket.type}
-                      </span>
-                      <span className="text-center">
-                        ₱{ticket.type === "VIP" ? "800" : "500"} each
-                      </span>
-                      <span className="text-right">For {ticket.dancer}</span>
+                  {Object.entries(
+                    formData.tickets.reduce((acc, ticket) => {
+                      const key = `${ticket.type}-${ticket.dancer}`;
+                      if (!acc[key]) {
+                        acc[key] = {
+                          type: ticket.type,
+                          dancer: ticket.dancer,
+                          price: ticket.type === "VIP" ? 800 : 500,
+                          count: 0
+                        };
+                      }
+                      acc[key].count += parseInt(ticket.quantity);
+                      return acc;
+                    }, {} as Record<string, { type: string; dancer: string; price: number; count: number }>)
+                  ).map(([key, { type, dancer, price, count }]) => (
+                    <div key={key} className="ml-2 grid grid-cols-3 text-sm">
+                      <span>{count}x {type}</span>
+                      <span className="text-center">₱{price} each</span>
+                      <span className="text-right">For {dancer}</span>
                     </div>
                   ))}
                 </div>
@@ -455,6 +466,17 @@ export default function CheckoutPage() {
                 Please upload a clear screenshot of your payment confirmation.
               </p>
             </div>
+
+            {/* Ticket Generation Information */}
+            <Alert className="bg-teal-900/20 border-teal-800">
+              <Ticket className="h-4 w-4" />
+              <AlertTitle>Ticket Information</AlertTitle>
+              <AlertDescription>
+                After we've confirmed your payment, {totalTicketCount} unique
+                tickets will be generated with individual QR codes and sent via
+                your email address.
+              </AlertDescription>
+            </Alert>
           </CardContent>
           <CardFooter>
             <Button

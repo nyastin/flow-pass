@@ -57,9 +57,22 @@ export const registrationColumns: ColumnDef<RegistrationWithRelations>[] = [
     header: "Tickets",
     cell: ({ row }) => (
       <div className="flex flex-col gap-1">
-        {row.original.tickets.map((ticket) => (
-          <div key={ticket.id} className="text-xs">
-            {ticket.quantity}x {ticket.ticketType.name} ({ticket.dancer})
+        {Object.entries(
+          row.original.tickets.reduce((acc, ticket) => {
+            const key = `${ticket.ticketType.name}-${ticket.dancer}`;
+            if (!acc[key]) {
+              acc[key] = {
+                type: ticket.ticketType.name,
+                dancer: ticket.dancer,
+                count: 0
+              };
+            }
+            acc[key].count++;
+            return acc;
+          }, {} as Record<string, { type: string; dancer: string; count: number }>)
+        ).map(([key, { type, dancer, count }]) => (
+          <div key={key} className="text-xs">
+            {count} x {type} ({dancer})
           </div>
         ))}
       </div>

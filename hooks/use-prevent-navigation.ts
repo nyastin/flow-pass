@@ -1,8 +1,7 @@
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 export function usePreventNavigation() {
-  const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {

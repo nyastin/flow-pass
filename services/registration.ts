@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
 
 // Define the ticket item schema
 const ticketItemSchema = z.object({
@@ -26,6 +28,70 @@ const formSchema = z.object({
 
 export type RegistrationFormData = z.infer<typeof formSchema>;
 
+/**
+ * Generates a unique QR code for a ticket with collision prevention
+ * @param registrationId - The ID of the registration
+ * @param ticketTypeId - The ID of the ticket type
+ * @param ticketIndex - The index of the ticket within its group
+ * @param dancer - The dancer associated with the ticket
+ * @returns A unique QR code string
+ */
+async function generateUniqueQRCode(
+  registrationId: string,
+  ticketTypeId: string,
+  ticketIndex: number,
+  dancer: string,
+): Promise<string> {
+  // Maximum retry attempts
+  const MAX_RETRIES = 5;
+  let retries = 0;
+
+  while (retries < MAX_RETRIES) {
+    // Generate a UUID v4 for guaranteed uniqueness
+    const uuid = uuidv4();
+
+    // Create a unique string with multiple entropy sources
+    const uniqueString = [
+      registrationId,
+      ticketTypeId,
+      dancer,
+      ticketIndex.toString(),
+      Date.now().toString(),
+      uuid,
+      Math.random().toString(36).substring(2, 15),
+    ].join("-");
+
+    // Generate a SHA-256 hash and take the first 24 characters
+    // This gives us 96 bits of entropy which is sufficient to prevent collisions
+    const qrCode = crypto
+      .createHash("sha256")
+      .update(uniqueString)
+      .digest("hex")
+      .substring(0, 24);
+
+    // Check if this QR code already exists in the database
+    const existingTicket = await prisma.ticket.findUnique({
+      where: { qrCode },
+    });
+
+    // If no collision, return the QR code
+    if (!existingTicket) {
+      return qrCode;
+    }
+
+    // If collision detected, increment retry counter and try again
+    retries++;
+    console.warn(
+      `QR code collision detected, retrying (${retries}/${MAX_RETRIES})...`,
+    );
+  }
+
+  // If we've exhausted all retries, throw an error
+  throw new Error(
+    "Failed to generate a unique QR code after multiple attempts",
+  );
+}
+
 export async function createRegistration(formData: RegistrationFormData) {
   try {
     // Validate the form data
@@ -43,31 +109,6 @@ export async function createRegistration(formData: RegistrationFormData) {
       }),
     );
 
-    // Consolidate duplicate tickets
-    const consolidatedTickets = validatedData.tickets.reduce<
-      Array<{
-        type: string;
-        quantity: number;
-        dancer: string;
-      }>
-    >((acc, ticket) => {
-      const existingTicket = acc.find(
-        (t) => t.type === ticket.type && t.dancer === ticket.dancer,
-      );
-
-      if (existingTicket) {
-        existingTicket.quantity += Number.parseInt(ticket.quantity);
-      } else {
-        acc.push({
-          type: ticket.type,
-          quantity: Number.parseInt(ticket.quantity),
-          dancer: ticket.dancer,
-        });
-      }
-
-      return acc;
-    }, []);
-
     // Create the registration
     const registration = await prisma.registration.create({
       data: {
@@ -77,20 +118,41 @@ export async function createRegistration(formData: RegistrationFormData) {
         specialRequirements: validatedData.specialRequirements || null,
         referenceNumber: validatedData.referenceNumber,
         totalPrice: validatedData.totalPrice,
-        tickets: {
-          create: consolidatedTickets.map((ticket) => {
-            const ticketType = ticketTypes.find((t) => t.name === ticket.type);
-            if (!ticketType)
-              throw new Error(`Ticket type ${ticket.type} not found`);
-
-            return {
-              ticketTypeId: ticketType.id,
-              quantity: ticket.quantity,
-              dancer: ticket.dancer,
-            };
-          }),
-        },
       },
+    });
+
+    // Process each ticket group sequentially to avoid race conditions
+    for (const ticketItem of validatedData.tickets) {
+      const ticketType = ticketTypes.find((t) => t.name === ticketItem.type);
+      if (!ticketType)
+        throw new Error(`Ticket type ${ticketItem.type} not found`);
+
+      const quantity = Number.parseInt(ticketItem.quantity);
+
+      // Create each individual ticket with a unique QR code
+      for (let i = 0; i < quantity; i++) {
+        // Generate a unique QR code with collision prevention
+        const qrCode = await generateUniqueQRCode(
+          registration.id,
+          ticketType.id,
+          i,
+          ticketItem.dancer,
+        );
+
+        await prisma.ticket.create({
+          data: {
+            registrationId: registration.id,
+            ticketTypeId: ticketType.id,
+            dancer: ticketItem.dancer,
+            qrCode,
+          },
+        });
+      }
+    }
+
+    // Fetch the complete registration with tickets
+    const completeRegistration = await prisma.registration.findUnique({
+      where: { id: registration.id },
       include: {
         tickets: {
           include: {
@@ -101,7 +163,7 @@ export async function createRegistration(formData: RegistrationFormData) {
     });
 
     revalidatePath("/");
-    return { success: true, data: registration };
+    return { success: true, data: completeRegistration };
   } catch (error) {
     console.error("Error creating registration:", error);
     return { success: false, error: (error as Error).message };

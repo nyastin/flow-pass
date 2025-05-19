@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
-import { Check, Loader2, X, AlertTriangle } from "lucide-react";
+import { Check, Loader2, X, AlertTriangle, QrCode } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,33 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { useUpdateRegistrationStatus } from "@/hooks/use-admin-mutations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RegistrationWithRelations } from "@/services/admin";
-
-interface Registration {
-  id: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  specialRequirements?: string | null;
-  referenceNumber: string;
-  totalPrice: number;
-  status: string;
-  createdAt: string;
-  tickets: Array<{
-    id: string;
-    quantity: number;
-    dancer: string;
-    ticketType: {
-      id: string;
-      name: string;
-      price: number;
-    };
-  }>;
-  paymentProof?: {
-    id: string;
-    imageUrl: string;
-    uploadedAt: string;
-  } | null;
-}
+import { Ticket } from "@prisma/client";
 
 interface RegistrationDetailsProps {
   registration: RegistrationWithRelations;
@@ -58,6 +32,26 @@ export function RegistrationDetails({
     setImageError(true);
     console.error("Failed to load payment proof image");
   };
+  // Group tickets by type and dancer for display
+  const groupedTickets = registration.tickets.reduce(
+    (acc, ticket) => {
+      const key = `${ticket.ticketType.name}-${ticket.dancer}`;
+      if (!acc[key]) {
+        acc[key] = {
+          type: ticket.ticketType.name,
+          dancer: ticket.dancer,
+          price: ticket.ticketType.price,
+          tickets: [],
+        };
+      }
+      acc[key].tickets.push(ticket);
+      return acc;
+    },
+    {} as Record<
+      string,
+      { type: string; dancer: string; price: number; tickets: Ticket[] }
+    >,
+  );
 
   return (
     <div className="space-y-6">
@@ -126,6 +120,12 @@ export function RegistrationDetails({
                 <span className="text-muted-foreground">Total Amount:</span>
                 <span className="font-medium">
                   ₱{registration.totalPrice.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Tickets:</span>
+                <span className="font-medium">
+                  {registration.tickets.length}
                 </span>
               </div>
             </div>
@@ -206,27 +206,54 @@ export function RegistrationDetails({
       <Card>
         <CardContent className="pt-6 space-y-4">
           <h3 className="text-lg font-medium">Ticket Details</h3>
-          <div className="space-y-2">
-            {registration.tickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="flex justify-between py-2 border-b last:border-0"
-              >
-                <div>
-                  <span className="font-medium">
-                    {ticket.quantity}x {ticket.ticketType.name}
-                  </span>
-                  <span className="text-sm text-muted-foreground ml-2">
-                    (For {ticket.dancer})
-                  </span>
+          <div className="space-y-4">
+            {Object.values(groupedTickets).map((group, index) => (
+              <div key={index} className="border rounded-md p-4">
+                <div className="flex justify-between mb-2">
+                  <div>
+                    <span className="font-medium">
+                      {group.tickets.length}x {group.type}
+                    </span>
+                    <span className="text-sm text-muted-foreground ml-2">
+                      (For {group.dancer})
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div>₱{group.price} each</div>
+                    <div className="font-medium">
+                      ₱{(group.tickets.length * group.price).toLocaleString()}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div>₱{ticket.ticketType.price} each</div>
-                  <div className="font-medium">
-                    ₱
-                    {(
-                      ticket.quantity * ticket.ticketType.price
-                    ).toLocaleString()}
+
+                <Separator className="my-2" />
+
+                <div className="space-y-2 mt-3">
+                  <h4 className="text-sm font-medium flex items-center">
+                    <QrCode className="h-4 w-4 mr-1" />
+                    Individual Tickets
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {group.tickets.map((ticket) => (
+                      <div
+                        key={ticket.id}
+                        className="text-xs border rounded p-2 flex justify-between items-center"
+                      >
+                        <div>
+                          <div className="font-mono">ID: {ticket.id}</div>
+                          {ticket.qrCode && (
+                            <div className="font-mono truncate max-w-[120px]">
+                              QR: {ticket.qrCode}
+                            </div>
+                          )}
+                        </div>
+                        <Badge
+                          variant={ticket.isScanned ? "destructive" : "default"}
+                        >
+                          {ticket.isScanned ? "Scanned" : "Not Scanned"}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

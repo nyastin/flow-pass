@@ -24,6 +24,9 @@ export function useCreateRegistration() {
         return;
       }
 
+      // Calculate total ticket count for display
+      const totalTicketCount = data.data?.tickets.length;
+
       // Store minimal data in sessionStorage for checkout page
       const checkoutData = {
         registrationId: data.data?.id,
@@ -32,25 +35,26 @@ export function useCreateRegistration() {
         phone: data.data?.phone,
         tickets: data.data?.tickets.map((ticket) => ({
           type: ticket.ticketType.name,
-          quantity: String(ticket.quantity),
+          quantity: "1", // Each ticket is now individual
           dancer: ticket.dancer,
         })),
         totalPrice: data.data?.totalPrice,
         priceBreakdown: {
-          vipCount: data.data?.tickets
-            .filter((t) => t.ticketType.name === "VIP")
-            .reduce((sum, t) => sum + t.quantity, 0),
-          regularCount: data.data?.tickets
-            .filter((t) => t.ticketType.name === "Regular")
-            .reduce((sum, t) => sum + t.quantity, 0),
+          vipCount: data.data?.tickets.filter(
+            (t) => t.ticketType.name === "VIP",
+          ).length,
+          regularCount: data.data?.tickets.filter(
+            (t) => t.ticketType.name === "Regular",
+          ).length,
           vipTotal: data.data?.tickets
             .filter((t) => t.ticketType.name === "VIP")
-            .reduce((sum, t) => sum + t.quantity * t.ticketType.price, 0),
+            .reduce((sum, t) => sum + t.ticketType.price, 0),
           regularTotal: data.data?.tickets
             .filter((t) => t.ticketType.name === "Regular")
-            .reduce((sum, t) => sum + t.quantity * t.ticketType.price, 0),
+            .reduce((sum, t) => sum + t.ticketType.price, 0),
         },
         referenceNumber: data.data?.referenceNumber,
+        ticketCount: totalTicketCount,
       };
 
       // Save to sessionStorage
