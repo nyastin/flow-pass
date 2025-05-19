@@ -171,7 +171,7 @@ export function RegistrationForm() {
     const currentTickets = form.getValues("tickets");
     const newTickets = [
       ...currentTickets,
-      { type: "Regular", quantity: "1", dancer: "" },
+      { type: "Regular" as const, quantity: "1", dancer: "" },
     ];
     form.setValue("tickets", newTickets);
 
