@@ -72,7 +72,7 @@ export default function CheckoutPage() {
   const [totalTicketCount, setTotalTicketCount] = useState(0);
 
   const uploadFileMutation = useUploadFile();
-  const savePaymentProofMutation = useSavePaymentProof();
+  // const savePaymentProofMutation = useSavePaymentProof();
 
   usePreventNavigation();
 
@@ -183,6 +183,7 @@ export default function CheckoutPage() {
       const uploadResult = await uploadFileMutation.mutateAsync({
         file: paymentProof,
         referenceNumber: formData.referenceNumber,
+        registrationId: formData.registrationId,
       });
 
       if (!uploadResult.success || !uploadResult.url) {
@@ -194,11 +195,11 @@ export default function CheckoutPage() {
       setUploadProgress(100);
 
       // Save the payment proof
-      await savePaymentProofMutation.mutateAsync({
-        registrationId: formData.registrationId,
-        imageUrl: uploadResult.url,
-        referenceNumber: formData.referenceNumber,
-      });
+      // await savePaymentProofMutation.mutateAsync({
+      //   registrationId: formData.registrationId,
+      //   imageUrl: uploadResult.url,
+      //   referenceNumber: formData.referenceNumber,
+      // });
     } catch (error) {
       clearInterval(progressInterval);
       setUploadProgress(0);
@@ -253,8 +254,8 @@ export default function CheckoutPage() {
     );
   }
 
-  const isSubmitting =
-    uploadFileMutation.isPending || savePaymentProofMutation.isPending;
+  const isSubmitting = uploadFileMutation.isPending;
+  // || savePaymentProofMutation.isPending;
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8 bg-gradient-to-b from-slate-950 to-slate-900 dark:from-slate-950 dark:to-slate-900">
@@ -301,22 +302,35 @@ export default function CheckoutPage() {
                   </h4>
 
                   {Object.entries(
-                    formData.tickets.reduce((acc, ticket) => {
-                      const key = `${ticket.type}-${ticket.dancer}`;
-                      if (!acc[key]) {
-                        acc[key] = {
-                          type: ticket.type,
-                          dancer: ticket.dancer,
-                          price: ticket.type === "VIP" ? 800 : 500,
-                          count: 0
-                        };
-                      }
-                      acc[key].count += parseInt(ticket.quantity);
-                      return acc;
-                    }, {} as Record<string, { type: string; dancer: string; price: number; count: number }>)
+                    formData.tickets.reduce(
+                      (acc, ticket) => {
+                        const key = `${ticket.type}-${ticket.dancer}`;
+                        if (!acc[key]) {
+                          acc[key] = {
+                            type: ticket.type,
+                            dancer: ticket.dancer,
+                            price: ticket.type === "VIP" ? 800 : 500,
+                            count: 0,
+                          };
+                        }
+                        acc[key].count += parseInt(ticket.quantity);
+                        return acc;
+                      },
+                      {} as Record<
+                        string,
+                        {
+                          type: string;
+                          dancer: string;
+                          price: number;
+                          count: number;
+                        }
+                      >,
+                    ),
                   ).map(([key, { type, dancer, price, count }]) => (
                     <div key={key} className="ml-2 grid grid-cols-3 text-sm">
-                      <span>{count}x {type}</span>
+                      <span>
+                        {count}x {type}
+                      </span>
                       <span className="text-center">₱{price} each</span>
                       <span className="text-right">For {dancer}</span>
                     </div>

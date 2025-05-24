@@ -170,27 +170,6 @@ export async function createRegistration(formData: RegistrationFormData) {
   }
 }
 
-export async function savePaymentProof(
-  registrationId: string,
-  imageUrl: string,
-) {
-  try {
-    const paymentProof = await prisma.paymentProof.create({
-      data: {
-        registrationId,
-        imageUrl,
-      },
-    });
-
-    revalidatePath("/");
-    revalidatePath("/4dkonly");
-    return { success: true, data: paymentProof };
-  } catch (error) {
-    console.error("Error saving payment proof:", error);
-    return { success: false, error: (error as Error).message };
-  }
-}
-
 export async function getRegistrationByReferenceNumber(
   referenceNumber: string,
 ) {
@@ -206,10 +185,6 @@ export async function getRegistrationByReferenceNumber(
         paymentProof: true,
       },
     });
-
-    if (!registration) {
-      return { success: false, error: "Registration not found" };
-    }
 
     return { success: true, data: registration };
   } catch (error) {

@@ -14,8 +14,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useRegistrationByReferenceNumber } from "@/hooks/use-mutations";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { getRegistrationByReferenceNumber } from "@/services/registration";
 
 export default function ConfirmationPage() {
   const router = useRouter();
@@ -38,12 +39,20 @@ export default function ConfirmationPage() {
     setReferenceNumber(storedRef);
   }, [router, toast]);
 
-  // Fetch registration details using the query hook
   const {
     data: registrationResult,
     isLoading,
-    isError,
-  } = useRegistrationByReferenceNumber(referenceNumber);
+    error,
+  } = useQuery({
+    queryKey: ["registration", referenceNumber],
+    queryFn: () => getRegistrationByReferenceNumber(String(referenceNumber)),
+    enabled: !!referenceNumber,
+  });
+
+  if (error) {
+    return <div>{error.message}</div>;
+  }
+
   const registrationDetails = registrationResult?.success
     ? registrationResult.data
     : null;
@@ -61,7 +70,7 @@ export default function ConfirmationPage() {
   }
 
   // If no reference number or registration details are available after loading
-  if (!referenceNumber || isError || !registrationDetails) {
+  if (!referenceNumber || error || !registrationDetails) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8 bg-gradient-to-b from-slate-950 to-slate-900 dark:from-slate-950 dark:to-slate-900">
         <Card className="w-full max-w-md">

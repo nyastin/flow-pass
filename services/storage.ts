@@ -1,40 +1,56 @@
-"use server"
+"use server";
 
-import { writeFile } from "fs/promises"
-import { join } from "path"
-import { v4 as uuidv4 } from "uuid"
+import { uploadPaymentProof } from "@/lib/supabase-storage";
+import prisma from "@/lib/prisma";
 
 // This is a server-side function to handle file uploads
-export async function uploadFile(formData: FormData): Promise<{ success: boolean; url?: string; error?: string }> {
+export async function uploadFile(
+  formData: FormData,
+): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
-    const file = formData.get("file") as File
+    const file = formData.get("file") as File;
+    const registrationId = formData.get("registrationId") as string;
 
     if (!file) {
-      return { success: false, error: "No file provided" }
+      return { success: false, error: "No file provided" };
     }
 
-    // Generate a unique filename
-    const referenceNumber = (formData.get("referenceNumber") as string) || "unknown"
-    const fileExtension = file.name.split(".").pop() || "jpg"
-    const fileName = `${referenceNumber}-${Date.now()}-${uuidv4().substring(0, 8)}.${fileExtension}`
+    if (!registrationId) {
+      return { success: false, error: "Registration ID is required" };
+    }
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    // Get reference number from the registration
+    const registration = await prisma.registration.findUnique({
+      where: { id: registrationId },
+      select: { referenceNumber: true },
+    });
 
-    // Define the upload directory and path
-    const uploadDir = join(process.cwd(), "public", "uploads")
-    const filePath = join(uploadDir, fileName)
+    if (!registration) {
+      return { success: false, error: "Registration not found" };
+    }
 
-    // Ensure the directory exists
-    await writeFile(filePath, buffer)
+    // Upload file to Supabase
+    const publicUrl = await uploadPaymentProof(
+      file,
+      registration.referenceNumber,
+    );
 
-    // Return the public URL
-    const publicUrl = `/uploads/${fileName}`
+    // Create or update payment proof record in the database
+    await prisma.paymentProof.upsert({
+      where: { registrationId },
+      create: {
+        registrationId,
+        imageUrl: publicUrl,
+      },
+      update: {
+        imageUrl: publicUrl,
+        uploadedAt: new Date(),
+      },
+    });
 
-    return { success: true, url: publicUrl }
+    return { success: true, url: publicUrl };
   } catch (error) {
-    console.error("Error uploading file:", error)
-    return { success: false, error: (error as Error).message }
+    console.error("Error uploading file:", error);
+    return { success: false, error: (error as Error).message };
   }
 }

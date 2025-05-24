@@ -3,7 +3,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   createRegistration,
-  savePaymentProof,
   getRegistrationByReferenceNumber,
 } from "@/services/registration";
 import { uploadFile } from "@/services/storage";
@@ -75,38 +74,23 @@ export function useCreateRegistration() {
 
 // Hook for uploading a file
 export function useUploadFile() {
-  return useMutation({
-    mutationFn: async ({
-      file,
-      referenceNumber,
-    }: {
-      file: File;
-      referenceNumber: string;
-    }) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("referenceNumber", referenceNumber);
-      return uploadFile(formData);
-    },
-  });
-}
-
-// Hook for saving payment proof
-export function useSavePaymentProof() {
   const router = useRouter();
 
   return useMutation({
     mutationFn: async ({
-      registrationId,
-      imageUrl,
+      file,
       referenceNumber,
+      registrationId,
     }: {
-      registrationId: string;
-      imageUrl: string;
+      file: File;
       referenceNumber: string;
+      registrationId: string;
     }) => {
-      const result = await savePaymentProof(registrationId, imageUrl);
-
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("referenceNumber", referenceNumber);
+      formData.append("registrationId", registrationId);
+      const result = await uploadFile(formData);
       if (result.success) {
         // Store the reference number in sessionStorage for the confirmation page
         sessionStorage.setItem("4dk-confirmation", referenceNumber);
@@ -126,13 +110,6 @@ export function useSavePaymentProof() {
       setTimeout(() => {
         router.push("/confirmation");
       }, 1000);
-    },
-    onError: (error) => {
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          error.message ||
-          "There was a problem processing your payment. Please try again.",
-      });
     },
   });
 }

@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { RegistrationWithRelations } from "@/services/admin";
 
 interface Ticket {
   id: number;
@@ -43,7 +44,7 @@ interface Registration {
 }
 
 interface AdminStatsProps {
-  registrations: Registration[];
+  registrations: RegistrationWithRelations[];
 }
 
 export function AdminStats({ registrations }: AdminStatsProps) {
