@@ -10,7 +10,14 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata = {
   title: "4DK Dance Concert Registration",
   description: "Register for the 4DK Fundraising Dance Concert",
-    generator: 'v0.dev'
+  icons: {
+    icon: [
+      { url: "/4DK ON GRADIENT.png", type: "image/png" }
+    ],
+    apple: [
+      { url: "/4DK ON GRADIENT.png" }
+    ]
+  }
 }
 
 export default function RootLayout({

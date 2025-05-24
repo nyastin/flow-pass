@@ -107,9 +107,7 @@ export function useUploadFile() {
       }
 
       // Navigate to confirmation page
-      setTimeout(() => {
-        router.push("/confirmation");
-      }, 1000);
+      router.push("/confirmation");
     },
   });
 }

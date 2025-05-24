@@ -3,7 +3,6 @@
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -25,7 +24,6 @@ export const RegistrationModal = (props: BaseModalProps) => {
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Registration Details</DialogTitle>
-          <DialogDescription>Reference Number: test</DialogDescription>
         </DialogHeader>
         {data && <RegistrationDetails registration={data} />}
       </DialogContent>

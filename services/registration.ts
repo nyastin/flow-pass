@@ -92,78 +92,139 @@ async function generateUniqueQRCode(
   );
 }
 
-export async function createRegistration(formData: RegistrationFormData) {
+export async function createRegistration(
+  formData: RegistrationFormData,
+): Promise<{
+  success: boolean;
+  data?: {
+    id: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    specialRequirements: string | null;
+    referenceNumber: string;
+    totalPrice: number;
+    createdAt: Date;
+    updatedAt: Date;
+    status: "PENDING" | "CONFIRMED" | "CANCELLED";
+    tickets: Array<{
+      id: number;
+      registrationId: string;
+      ticketTypeId: string;
+      dancer: string;
+      qrCode: string | null;
+      isScanned: boolean;
+      scannedAt: Date | null;
+      createdAt: Date;
+      ticketType: {
+        id: string;
+        name: string;
+        price: number;
+      };
+    }>;
+  };
+  error?: string;
+}> {
   try {
     // Validate the form data
     const validatedData = formSchema.parse(formData);
 
-    // Get or create ticket types
-    const ticketTypes = await Promise.all(
-      ["VIP", "Regular"].map(async (name) => {
-        const price = name === "VIP" ? 800 : 500;
-        return prisma.ticketType.upsert({
-          where: { name },
-          update: { price },
-          create: { name, price },
-        });
-      }),
-    );
-
-    // Create the registration
-    const registration = await prisma.registration.create({
-      data: {
-        fullName: validatedData.fullName,
-        email: validatedData.email,
-        phone: validatedData.phone,
-        specialRequirements: validatedData.specialRequirements || null,
-        referenceNumber: validatedData.referenceNumber,
-        totalPrice: validatedData.totalPrice,
-      },
-    });
-
-    // Process each ticket group sequentially to avoid race conditions
-    for (const ticketItem of validatedData.tickets) {
-      const ticketType = ticketTypes.find((t) => t.name === ticketItem.type);
-      if (!ticketType)
-        throw new Error(`Ticket type ${ticketItem.type} not found`);
-
-      const quantity = Number.parseInt(ticketItem.quantity);
-
-      // Create each individual ticket with a unique QR code
-      for (let i = 0; i < quantity; i++) {
-        // Generate a unique QR code with collision prevention
-        const qrCode = await generateUniqueQRCode(
-          registration.id,
-          ticketType.id,
-          i,
-          ticketItem.dancer,
+    // Use a transaction for atomicity
+    return await prisma.$transaction(
+      async (tx) => {
+        // Get or create ticket types (within transaction)
+        const ticketTypes = await Promise.all(
+          ["VIP", "Regular"].map(async (name) => {
+            const price = name === "VIP" ? 800 : 500;
+            return tx.ticketType.upsert({
+              where: { name },
+              update: { price },
+              create: { name, price },
+            });
+          }),
         );
 
-        await prisma.ticket.create({
+        // Create the registration (within transaction)
+        const registration = await tx.registration.create({
           data: {
-            registrationId: registration.id,
-            ticketTypeId: ticketType.id,
-            dancer: ticketItem.dancer,
-            qrCode,
+            fullName: validatedData.fullName,
+            email: validatedData.email,
+            phone: validatedData.phone,
+            specialRequirements: validatedData.specialRequirements || null,
+            referenceNumber: validatedData.referenceNumber,
+            totalPrice: validatedData.totalPrice,
           },
         });
-      }
-    }
 
-    // Fetch the complete registration with tickets
-    const completeRegistration = await prisma.registration.findUnique({
-      where: { id: registration.id },
-      include: {
-        tickets: {
+        // Prepare all tickets data for batch creation
+        const ticketsToCreate: {
+          registrationId: string;
+          ticketTypeId: string;
+          dancer: string;
+          qrCode: string;
+        }[] = [];
+
+        for (const ticketItem of validatedData.tickets) {
+          const ticketType = ticketTypes.find(
+            (t) => t.name === ticketItem.type,
+          );
+          if (!ticketType)
+            throw new Error(`Ticket type ${ticketItem.type} not found`);
+
+          const quantity = Number.parseInt(ticketItem.quantity);
+
+          // Generate all QR codes for this ticket group
+          const qrCodes = await Promise.all(
+            Array.from({ length: quantity }, (_, i) =>
+              generateUniqueQRCode(
+                registration.id,
+                ticketType.id,
+                i,
+                ticketItem.dancer,
+              ),
+            ),
+          );
+
+          // Add all tickets for this group to the batch
+          qrCodes.forEach((qrCode) => {
+            ticketsToCreate.push({
+              registrationId: registration.id,
+              ticketTypeId: ticketType.id,
+              dancer: ticketItem.dancer,
+              qrCode,
+            });
+          });
+        }
+
+        // Create all tickets in a single batch operation
+        await tx.ticket.createMany({
+          data: ticketsToCreate,
+        });
+
+        // Fetch the complete registration with tickets (within transaction)
+        const completeRegistration = await tx.registration.findUnique({
+          where: { id: registration.id },
           include: {
-            ticketType: true,
+            tickets: {
+              include: {
+                ticketType: true,
+              },
+            },
           },
-        },
-      },
-    });
+        });
 
-    revalidatePath("/");
-    return { success: true, data: completeRegistration };
+        if (!completeRegistration) {
+          throw new Error("Failed to retrieve registration after creation");
+        }
+
+        revalidatePath("/");
+        return { success: true, data: completeRegistration };
+      },
+      {
+        // Set a reasonable timeout for the transaction
+        timeout: 10000, // 10 seconds
+      },
+    );
   } catch (error) {
     console.error("Error creating registration:", error);
     return { success: false, error: (error as Error).message };

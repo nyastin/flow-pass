@@ -15,6 +15,7 @@ import {
   Ticket,
 } from "lucide-react";
 import Image from "next/image";
+import { SiteFooter } from "@/components/site-footer";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +29,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useUploadFile, useSavePaymentProof } from "@/hooks/use-mutations";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useUploadFile } from "@/hooks/use-mutations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { usePreventNavigation } from "@/hooks/use-prevent-navigation";
@@ -70,9 +72,11 @@ export default function CheckoutPage() {
   );
   const [uploadProgress, setUploadProgress] = useState(0);
   const [totalTicketCount, setTotalTicketCount] = useState(0);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
+    "bdo" | "gcash" | "maya"
+  >("bdo");
 
   const uploadFileMutation = useUploadFile();
-  // const savePaymentProofMutation = useSavePaymentProof();
 
   usePreventNavigation();
 
@@ -193,13 +197,6 @@ export default function CheckoutPage() {
       // Clear the progress interval
       clearInterval(progressInterval);
       setUploadProgress(100);
-
-      // Save the payment proof
-      // await savePaymentProofMutation.mutateAsync({
-      //   registrationId: formData.registrationId,
-      //   imageUrl: uploadResult.url,
-      //   referenceNumber: formData.referenceNumber,
-      // });
     } catch (error) {
       clearInterval(progressInterval);
       setUploadProgress(0);
@@ -400,18 +397,72 @@ export default function CheckoutPage() {
 
             <div>
               <h3 className="font-medium mb-2">Payment Method</h3>
-              <div className="bg-slate-800 p-4 rounded-md text-center">
-                <div className="bg-slate-700 p-4 rounded-md mb-3 mx-auto w-48 h-48 flex items-center justify-center">
-                  {/* This would be replaced with an actual QR code image */}
-                  <div className="border-2 border-dashed border-slate-500 w-full h-full flex items-center justify-center">
-                    <p className="text-sm text-slate-300">GCash QR Code</p>
+              <div className="bg-slate-800 p-4 rounded-md">
+                <RadioGroup
+                  value={selectedPaymentMethod}
+                  onValueChange={(value) =>
+                    setSelectedPaymentMethod(value as "bdo" | "gcash" | "maya")
+                  }
+                  className="flex space-x-2 mb-4 justify-center"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="bdo" id="bdo" />
+                    <Label htmlFor="bdo" className="cursor-pointer">
+                      BDO
+                    </Label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="gcash" id="gcash" />
+                    <Label htmlFor="gcash" className="cursor-pointer">
+                      GCash
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="maya" id="maya" />
+                    <Label htmlFor="maya" className="cursor-pointer">
+                      Maya
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                <div className="flex justify-center">
+                  {selectedPaymentMethod === "bdo" && (
+                    <div className="bg-slate-700 p-4 rounded-md text-center">
+                      <div className="mx-auto w-64 h-64 flex items-center justify-center">
+                        <Image
+                          src="/BDO_QR.JPG"
+                          alt="BDO QR Code"
+                          width={256}
+                          height={256}
+                          className="w-full h-full object-contain rounded-md"
+                        />
+                      </div>
+                      <p className="text-sm mt-2 font-medium">BDO</p>
+                    </div>
+                  )}
+
+                  {selectedPaymentMethod === "gcash" && (
+                    <div className="bg-slate-700 p-4 rounded-md text-center">
+                      <div className="border-2 border-dashed border-slate-500 mx-auto w-64 h-64 flex items-center justify-center">
+                        <p className="text-sm text-slate-300">GCash QR Code</p>
+                      </div>
+                      <p className="text-sm mt-2 font-medium">GCash</p>
+                    </div>
+                  )}
+
+                  {selectedPaymentMethod === "maya" && (
+                    <div className="bg-slate-700 p-4 rounded-md text-center">
+                      <div className="border-2 border-dashed border-slate-500 mx-auto w-64 h-64 flex items-center justify-center">
+                        <p className="text-sm text-slate-300">Maya QR Code</p>
+                      </div>
+                      <p className="text-sm mt-2 font-medium">Maya</p>
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm">
-                  Scan the QR code above with your GCash app to make payment.
-                </p>
-                <p className="text-sm font-medium mt-2 text-teal-400">
-                  GCash Number: 0917 123 4567
+
+                <p className="text-sm mt-4 text-center">
+                  Scan the QR code above using your preferred bank app or
+                  e-wallet to make a payment.
                 </p>
               </div>
             </div>
@@ -509,6 +560,8 @@ export default function CheckoutPage() {
             </Button>
           </CardFooter>
         </Card>
+        
+        <SiteFooter />
       </div>
     </main>
   );

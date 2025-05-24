@@ -23,26 +23,6 @@ import {
 } from "@/components/ui/card";
 import { RegistrationWithRelations } from "@/services/admin";
 
-interface Ticket {
-  id: number;
-  dancer: string;
-  isScanned: boolean;
-  scannedAt: string | null;
-  ticketType: {
-    id: string;
-    name: string;
-    price: number;
-  };
-}
-
-interface Registration {
-  id: string;
-  fullName: string;
-  status: string;
-  totalPrice: number;
-  tickets: Ticket[];
-}
-
 interface AdminStatsProps {
   registrations: RegistrationWithRelations[];
 }

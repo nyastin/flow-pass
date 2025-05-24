@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
-import { Check, Loader2, X, AlertTriangle, QrCode } from "lucide-react";
+import { Check, Loader2, X, AlertTriangle, QrCode, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -133,70 +133,56 @@ export function RegistrationDetails({
             <Separator />
 
             <div className="space-y-2">
-              <h4 className="text-sm font-medium">Update Status</h4>
+              <h4 className="text-sm font-medium">Update Status:</h4>
               <div className="flex gap-2">
                 <Button
                   size="sm"
                   variant={
-                    registration.status === "CONFIRMED" ? "default" : "outline"
+                    registration.status === "CONFIRMED" ||
+                    registration.status === "CANCELLED"
+                      ? "outline"
+                      : "default"
                   }
                   className="flex-1"
-                  onClick={() => handleStatusChange("CONFIRMED")}
-                  disabled={
-                    updateStatusMutation.isPending ||
-                    registration.status === "CONFIRMED"
+                  onClick={() =>
+                    handleStatusChange(
+                      registration.status === "CONFIRMED" ||
+                        registration.status === "CANCELLED"
+                        ? "PENDING"
+                        : "CONFIRMED",
+                    )
                   }
+                  disabled={updateStatusMutation.isPending}
                 >
-                  {updateStatusMutation.isPending &&
-                  registration.status !== "CONFIRMED" ? (
+                  {updateStatusMutation.isPending ? (
                     <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : registration.status === "CONFIRMED" ||
+                    registration.status === "CANCELLED" ? (
+                    <Timer className="h-4 w-4 mr-1" />
                   ) : (
                     <Check className="h-4 w-4 mr-1" />
                   )}
-                  Confirm
+                  {registration.status === "CONFIRMED" ||
+                  registration.status === "CANCELLED"
+                    ? "Pending"
+                    : "Confirm"}
                 </Button>
-                <Button
-                  size="sm"
-                  variant={
-                    registration.status === "PENDING" ? "secondary" : "outline"
-                  }
-                  className="flex-1"
-                  onClick={() => handleStatusChange("PENDING")}
-                  disabled={
-                    updateStatusMutation.isPending ||
-                    registration.status === "PENDING"
-                  }
-                >
-                  {updateStatusMutation.isPending &&
-                  registration.status !== "PENDING" ? (
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  ) : (
-                    <span className="h-4 w-4 mr-1">⏱️</span>
-                  )}
-                  Pending
-                </Button>
-                <Button
-                  size="sm"
-                  variant={
-                    registration.status === "CANCELLED"
-                      ? "destructive"
-                      : "outline"
-                  }
-                  className="flex-1"
-                  onClick={() => handleStatusChange("CANCELLED")}
-                  disabled={
-                    updateStatusMutation.isPending ||
-                    registration.status === "CANCELLED"
-                  }
-                >
-                  {updateStatusMutation.isPending &&
-                  registration.status !== "CANCELLED" ? (
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  ) : (
-                    <X className="h-4 w-4 mr-1" />
-                  )}
-                  Cancel
-                </Button>
+                {registration.status !== "CANCELLED" && (
+                  <Button
+                    size="sm"
+                    variant={"destructive"}
+                    className="flex-1"
+                    onClick={() => handleStatusChange("CANCELLED")}
+                    disabled={updateStatusMutation.isPending}
+                  >
+                    {updateStatusMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <X className="h-4 w-4 mr-1" />
+                    )}
+                    Cancel
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

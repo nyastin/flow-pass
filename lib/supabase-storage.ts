@@ -17,7 +17,7 @@ export async function uploadPaymentProof(
     const filePath = `payment-proofs/${fileName}`;
 
     // Upload the file
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("flow-pass")
       .upload(filePath, file, {
         cacheControl: "3600",

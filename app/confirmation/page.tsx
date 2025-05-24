@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Home, Loader2 } from "lucide-react";
+import { Registration } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,9 +15,34 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useRegistrationByReferenceNumber } from "@/hooks/use-mutations";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { getRegistrationByReferenceNumber } from "@/services/registration";
+import { SiteFooter } from "@/components/site-footer";
+
+// Define proper types
+type RegistrationWithRelations = Registration & {
+  tickets: Array<{
+    id: number;
+    ticketType: {
+      name: string;
+      price: number;
+    };
+    dancer: string;
+    qrCode: string | null;
+    isScanned: boolean;
+  }>;
+  paymentProof: {
+    id: string;
+    imageUrl: string;
+    uploadedAt: Date;
+  } | null;
+};
+
+type RegistrationResponse = {
+  success: boolean;
+  data?: RegistrationWithRelations;
+  error?: string;
+};
 
 export default function ConfirmationPage() {
   const router = useRouter();
@@ -25,7 +51,6 @@ export default function ConfirmationPage() {
   // Load reference number from sessionStorage
   useEffect(() => {
     const storedRef = sessionStorage.getItem("4dk-confirmation");
-
     if (!storedRef) {
       // No reference number found, redirect to registration page
       toast.error("Uh oh! Something went wrong.", {
@@ -37,25 +62,18 @@ export default function ConfirmationPage() {
     }
 
     setReferenceNumber(storedRef);
-  }, [router, toast]);
+  }, [router]);
 
-  const {
-    data: registrationResult,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["registration", referenceNumber],
-    queryFn: () => getRegistrationByReferenceNumber(String(referenceNumber)),
-    enabled: !!referenceNumber,
-  });
+  // Fetch registration details using the query hook
+  const { data, isLoading, isError } =
+    useRegistrationByReferenceNumber(referenceNumber);
 
-  if (error) {
-    return <div>{error.message}</div>;
-  }
-
-  const registrationDetails = registrationResult?.success
-    ? registrationResult.data
-    : null;
+  // Properly cast and check the data
+  const registrationData = data as RegistrationResponse | undefined;
+  const registrationDetails =
+    registrationData?.success && registrationData?.data
+      ? registrationData.data
+      : null;
 
   // Show loading state
   if (isLoading) {
@@ -70,7 +88,7 @@ export default function ConfirmationPage() {
   }
 
   // If no reference number or registration details are available after loading
-  if (!referenceNumber || error || !registrationDetails) {
+  if (!referenceNumber || isError || !registrationDetails) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8 bg-gradient-to-b from-slate-950 to-slate-900 dark:from-slate-950 dark:to-slate-900">
         <Card className="w-full max-w-md">
@@ -157,6 +175,7 @@ export default function ConfirmationPage() {
             </Link>
           </CardFooter>
         </Card>
+        <SiteFooter />
       </div>
     </main>
   );

@@ -153,7 +153,7 @@ export function RegistrationForm() {
 
     // Always update the total price to ensure it's current
     setTotalPrice(newTotal);
-  }, [tickets]); // Only depend on tickets
+  }, [tickets, totalPrice]); // Only depend on tickets
 
   // Reset animation flag after animation completes
   useEffect(() => {
